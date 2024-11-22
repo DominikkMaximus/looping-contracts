@@ -9,8 +9,6 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 
 import { ISwapper } from "./interfaces/ISwapper.sol";
 import { IPool } from "./interfaces/IPool.sol";
-import { IOracle } from "./interfaces/IOracle.sol";
-import { DataTypes } from './interfaces/DataTypes.sol';
 
 /// @title Looping
 /// @author HyperLend
@@ -88,7 +86,7 @@ contract Looping is Ownable, ReentrancyGuard {
         ) = abi.decode(params, (address, address, address[], uint256, uint256));
 
         //swap flashloaned debt token to yield token
-        uint256 yieldAmount = _swapToYield(swapper, path, minAmountOut);
+        uint256 yieldAmount = _swapToYield(swapper, path, amount, minAmountOut);
 
         //supply yield tokens, borrow debt tokens
         _supplyAndBorrow(debtAsset, yieldAsset, yieldAmount, repaymentAmount + premium);
@@ -106,22 +104,23 @@ contract Looping is Ownable, ReentrancyGuard {
     /// @param swapper address of the dex contract
     /// @param path path we want to use when swapping
     /// @param minAmountOut minimum amount fo yield token we want to receive
-    function _swapToYield(address swapper, address[] memory path, uint256 minAmountOut) internal returns (uint256) {
+    function _swapToYield(address swapper, address[] memory path, uint256 amountToSwap, uint256 minAmountOut) internal returns (uint256) {
         require(swappers[swapper], "swapper not allowed");
 
-        uint256 amountToSwap = IERC20(path[0]).balanceOf(address(this));
         IERC20(path[0]).approve(swapper, amountToSwap);
 
-        uint256[] memory returnAmounts = ISwapper(swapper).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+        uint256 balanceBefore = IERC20(path[path.length-1]).balanceOf(address(this));
+        ISwapper(swapper).swapExactTokensForTokensSupportingFeeOnTransferTokens(
             amountToSwap,
             minAmountOut,
             path,
             address(this),
-            address(this),
-            block.timestamp + 1
+            owner(),
+            block.timestamp
         );
+        uint256 balanceAfter = IERC20(path[path.length-1]).balanceOf(address(this));
 
-        return returnAmounts[returnAmounts.length -1];
+        return balanceAfter - balanceBefore;
     }
 
     /// @notice used to supply yield token to the pool and borrow debt token

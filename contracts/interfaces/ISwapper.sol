@@ -7,7 +7,7 @@ interface ISwapper {
         uint amountOutMin,
         address[] calldata path,
         address to,
-        address s,
+        address referrer,
         uint deadline
-    ) external returns (uint[] memory amounts);
+    ) external;
 }
