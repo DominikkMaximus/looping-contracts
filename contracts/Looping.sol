@@ -71,7 +71,6 @@ contract Looping is Ownable, ReentrancyGuard {
     /// @param _swapper address of the swapping contract (DEX) used to swap _debtAsset to _yieldAsset
     /// @param _debtAsset asset we want to borrow
     /// @param _yieldAsset asset we want to maximize the supply
-    /// @param _initialAmount initial amount of the _debtAsset provided by the user
     /// @param _flashloanAmount amount of the _debtAsset we want to flashloan and then swap to _yieldAsset
     /// @param _minAmountOut minimum amount of _yieldAsset we can receive after swapping _debtAsset
     /// @param _path path used to swap from _debtAsset to _yieldAsset
@@ -81,16 +80,12 @@ contract Looping is Ownable, ReentrancyGuard {
         address _swapper,
         address _debtAsset, 
         address _yieldAsset, 
-        uint256 _initialAmount, 
         uint256 _flashloanAmount, 
         uint256 _minAmountOut,
         address[] memory _path,
         uint256 _withdrawAmount
     ) external nonReentrant() {
         require(pools[_pool], "pool not allowed");
-
-        //transfer initial _debtAsset from user
-        if (_initialAmount > 0) IERC20(_debtAsset).transferFrom(msg.sender, address(this), _initialAmount);
 
         //use flashloan to borrow _debtAsset
         bytes memory params = abi.encode(1, _yieldAsset, _swapper, _path, _flashloanAmount, _minAmountOut, msg.sender, _withdrawAmount);
