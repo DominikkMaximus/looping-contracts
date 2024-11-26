@@ -21,8 +21,8 @@ async function main(){
     const yieldAsset = "0x453b63484b11bbF0b61fC7E854f8DAC7bdE7d458" //mBTC
     const hYieldToken = "0xde72990638db12f8AA4cd9406bA6c648153A5cEA"
     const debtAssetVariableDebtToken = "0xE5C5E18723991AF5D2a640f6C9667D48741429E6" //WETHVariableDebt
-    const initialAmount = (0.4 * Math.pow(10, 18)).toString() //ETH
-    const flashloanAmount = (0.45 * Math.pow(10, 18)).toString() //ETH
+    const initialAmount = (0.1 * Math.pow(10, 18)).toString() //ETH
+    const flashloanAmount = (0.25 * Math.pow(10, 18)).toString() //ETH
     const minAmountOut = 0;
 
     const debtInstance = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", debtAsset)
@@ -34,20 +34,7 @@ async function main(){
     await hYieldInstance.connect(owner).approve(looping.target, "9999999999999999999999999999999999999999999999999999999999999999")
     console.log(`approved tokens`)
 
-    // console.log(await looping.connect(owner).openPosition(
-    //     pool,
-    //     swapper,
-    //     debtAsset,`
-    //     yieldAsset,
-    //     initialAmount,
-    //     flashloanAmount,
-    //     minAmountOut,
-    //     [debtAsset, yieldAsset]
-    // ))
-    // console.log(`leveraged position opened`)
-
-    const withdrawAmount = (0.005 * Math.pow(10, 8)).toString()
-    console.log(await looping.connect(owner).closePosition(
+    console.log(await looping.connect(owner).openPosition(
         pool,
         swapper,
         debtAsset,
@@ -55,8 +42,36 @@ async function main(){
         initialAmount,
         flashloanAmount,
         minAmountOut,
-        [yieldAsset, debtAsset],
-        withdrawAmount
+        [debtAsset, yieldAsset]
     ))
-    console.log(`leveraged position reduced`)
+    console.log(`leveraged position opened`)
+
+    //ltv: 0.75, btc = 90k, eth = 3.5k
+    //initial amount: 0.1 ETH = 350 usd
+    //flashloan amount: 0.4 ETH = 1400 usd
+
+    //swap flashloan to BTC = 0.015555555 btc and supply it
+    //borrow 0.015555555 btc * 90,000 usd * 0.75 tlv = 1050 usd worth of eth = 0.3 ETH
+    //balance = 0.3 + 0.1 = 0.4 => repay flashloan
+    //aave fee = 0.05%
+
+    //max position ignoring fees: 1/(1-ltv) * initialAmount
+    //fee: 1/(1-ltv) * initialAmount * 0.0005
+    //max position from initial amount: 1/(1-ltv) * (initialAmount - fee)
+
+    //0.1 ETH initial amount = 0.3992 ETH flashloanAmount
+
+    // const withdrawAmount = (0.005 * Math.pow(10, 8)).toString()
+    // console.log(await looping.connect(owner).closePosition(
+    //     pool,
+    //     swapper,
+    //     debtAsset,
+    //     yieldAsset,
+    //     initialAmount,
+    //     flashloanAmount,
+    //     minAmountOut,
+    //     [yieldAsset, debtAsset],
+    //     withdrawAmount
+    // ))
+    // console.log(`leveraged position reduced`)
 }

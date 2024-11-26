@@ -35,93 +35,102 @@ contract PositionsManager is Ownable {
     constructor(address _owner) Ownable(_owner){}
 
     /// @notice combine the two addresses and hash them
-    function _getPositionId(address yieldAsset, address debtAsset) public pure returns (bytes32) {
+    function getPositionId(address yieldAsset, address debtAsset) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(yieldAsset, debtAsset));
+    }
+
+    struct PositionParams {
+        address debtAsset;
+        address yieldAsset;
+        uint256 initialAmount;
+        uint256 flashloanAmount;
+        uint256 minAmountOut;
+        address[] path;
     }
 
     function increasePosition(
         address _loopingHelper,
-        address _pool, 
+        address _pool,
         address _swapper,
-        address _debtAsset, 
-        address _yieldAsset, 
-        uint256 _initialAmount, 
-        uint256 _flashloanAmount, 
-        uint256 _minAmountOut,
-        address[] memory _path
-    ) external onlyOwner() {
-        IERC20(_debtAsset).transferFrom(msg.sender, address(this), _initialAmount);
-        IERC20(_debtAsset).approve(_loopingHelper, type(uint256).max);
+        PositionParams memory params
+    ) external onlyOwner {
+        IERC20(params.debtAsset).transferFrom(msg.sender, address(this), params.initialAmount);
+        IERC20(params.debtAsset).approve(_loopingHelper, type(uint256).max);
+
+        DataTypes.ReserveData memory yieldReserveData = IPool(_pool).getReserveData(params.yieldAsset);
+        DataTypes.ReserveData memory debtReserveData = IPool(_pool).getReserveData(params.debtAsset);
+
+        uint256 yieldBalanceScaledBefore = IAToken(yieldReserveData.aTokenAddress).scaledBalanceOf(address(this));
+        uint256 debtBalanceScaledBefore = IDebtToken(debtReserveData.variableDebtTokenAddress).scaledBalanceOf(address(this));
 
         Looping(_loopingHelper).openPosition(
-            _pool, 
+            _pool,
             _swapper,
-            _debtAsset, 
-            _yieldAsset, 
-            _initialAmount, 
-            _flashloanAmount, 
-            _minAmountOut,
-            _path
+            params.debtAsset,
+            params.yieldAsset,
+            params.initialAmount,
+            params.flashloanAmount,
+            params.minAmountOut,
+            params.path
         );
 
-        DataTypes.ReserveData memory yieldReserveData = IPool(_pool).getReserveData(_yieldAsset);
-        uint256 yieldBalanceScaled = IAToken(yieldReserveData.aTokenAddress).scaledBalanceOf(address(this));
+        uint256 yieldBalanceScaledAfter = IAToken(yieldReserveData.aTokenAddress).scaledBalanceOf(address(this));
+        uint256 debtBalanceScaledAfter = IDebtToken(debtReserveData.variableDebtTokenAddress).scaledBalanceOf(address(this));
 
-        DataTypes.ReserveData memory debtReserveData = IPool(_pool).getReserveData(_debtAsset);
-        uint256 debtBalanceScaled = IDebtToken(debtReserveData.variableDebtTokenAddress).scaledBalanceOf(address(this));
-
-        bytes32 positionId = _getPositionId(_yieldAsset, _debtAsset);
+        bytes32 positionId = getPositionId(params.yieldAsset, params.debtAsset);
         positions[positionId] = Position({
             isOpen: true,
             pool: _pool,
-            yieldAsset: _yieldAsset,
-            debtAsset: _debtAsset,
-            yieldBalanceScaled: yieldBalanceScaled,
-            debtBalanceScaled: debtBalanceScaled,
+            yieldAsset: params.yieldAsset,
+            debtAsset: params.debtAsset,
+            yieldBalanceScaled: yieldBalanceScaledAfter - yieldBalanceScaledBefore,
+            debtBalanceScaled: debtBalanceScaledAfter - debtBalanceScaledBefore,
             lastModifiedAt: block.timestamp
         });
     }
+
 
     function reducePosition(
         address _loopingHelper,
         address _pool, 
         address _swapper,
-        address _debtAsset, 
-        address _yieldAsset, 
-        uint256 _initialAmount, 
-        uint256 _flashloanAmount, 
-        uint256 _minAmountOut,
-        address[] memory _path,
+        PositionParams memory params,
         uint256 _withdrawAmount
     ) external onlyOwner() {
-        DataTypes.ReserveData memory yieldReserveData = IPool(_pool).getReserveData(_yieldAsset);
-        DataTypes.ReserveData memory debtReserveData = IPool(_pool).getReserveData(_debtAsset);
+        DataTypes.ReserveData memory yieldReserveData = IPool(_pool).getReserveData(params.yieldAsset);
+        DataTypes.ReserveData memory debtReserveData = IPool(_pool).getReserveData(params.debtAsset);
 
-        IERC20(_debtAsset).transferFrom(msg.sender, address(this), _initialAmount);
-        IERC20(_debtAsset).approve(_loopingHelper, type(uint256).max);
+        IERC20(params.debtAsset).transferFrom(msg.sender, address(this), params.initialAmount);
+        IERC20(params.debtAsset).approve(_loopingHelper, type(uint256).max);
         IERC20(yieldReserveData.aTokenAddress).approve(_loopingHelper, _withdrawAmount);
+
+        uint256 yieldBalanceScaledBefore = IAToken(yieldReserveData.aTokenAddress).scaledBalanceOf(address(this));
+        uint256 debtBalanceScaledBefore = IDebtToken(debtReserveData.variableDebtTokenAddress).scaledBalanceOf(address(this));
 
         Looping(_loopingHelper).closePosition(
             _pool, 
             _swapper,
-            _debtAsset, 
-            _yieldAsset, 
-            _initialAmount, 
-            _flashloanAmount, 
-            _minAmountOut,
-            _path,
+            params.debtAsset, 
+            params.yieldAsset, 
+            params.initialAmount, 
+            params.flashloanAmount, 
+            params.minAmountOut,
+            params.path,
             _withdrawAmount
         );
 
-        uint256 yieldBalanceScaled = IAToken(yieldReserveData.aTokenAddress).scaledBalanceOf(address(this));
-        uint256 debtBalanceScaled = IDebtToken(debtReserveData.variableDebtTokenAddress).scaledBalanceOf(address(this));
+        uint256 yieldBalanceScaledAfter = IAToken(yieldReserveData.aTokenAddress).scaledBalanceOf(address(this));
+        uint256 debtBalanceScaledAfter = IDebtToken(debtReserveData.variableDebtTokenAddress).scaledBalanceOf(address(this));
 
-        bytes32 positionId = _getPositionId(_yieldAsset, _debtAsset);
+        uint256 yieldBalanceScaled = yieldBalanceScaledAfter - yieldBalanceScaledBefore;
+        uint256 debtBalanceScaled = debtBalanceScaledAfter - debtBalanceScaledBefore;
+
+        bytes32 positionId = getPositionId(params.yieldAsset, params.debtAsset);
         positions[positionId] = Position({
-            isOpen: yieldBalanceScaled > 0 && debtBalanceScaled > 0,
+            isOpen: yieldBalanceScaled > 0 || debtBalanceScaled > 0,
             pool: _pool,
-            yieldAsset: _yieldAsset,
-            debtAsset: _debtAsset,
+            yieldAsset: params.yieldAsset,
+            debtAsset: params.debtAsset,
             yieldBalanceScaled: yieldBalanceScaled,
             debtBalanceScaled: debtBalanceScaled,
             lastModifiedAt: block.timestamp
@@ -133,7 +142,7 @@ contract PositionsManager is Ownable {
         uint256 yieldBalanceNow,
         uint256 debtBalanceNow
     ) {
-        bytes32 positionId = _getPositionId(_yieldAsset, _debtAsset);
+        bytes32 positionId = getPositionId(_yieldAsset, _debtAsset);
 
         pos = positions[positionId];
 
