@@ -20,6 +20,8 @@ contract Looping is Ownable, ReentrancyGuard {
     mapping(address => bool) public pools;
     /// @notice mapping of whitelisted swapper contracts
     mapping(address => bool) public swappers;
+    /// @notice address that receives referral rewards from the swapper
+    address public referralAddress;
 
     /// @param _pools array of whitelisted pools
     /// @param _swappers array of whitelisted swappers
@@ -30,6 +32,8 @@ contract Looping is Ownable, ReentrancyGuard {
         for (uint256 i = 0; i < _swappers.length; i++){
             swappers[_swappers[i]] = true;
         }
+
+        referralAddress = _owner;
     }
 
     /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
@@ -211,7 +215,7 @@ contract Looping is Ownable, ReentrancyGuard {
             minAmountOut,
             path,
             address(this),
-            owner(),
+            referralAddress,
             block.timestamp
         );
         uint256 balanceAfter = IERC20(path[path.length-1]).balanceOf(address(this));
@@ -250,8 +254,13 @@ contract Looping is Ownable, ReentrancyGuard {
         swappers[_swapper] = _isApproved;
     }
 
+    /// @notice used to update the swapper referral address
+    function setReferralAddress(address _newReferralAddress) external onlyOwner(){
+        referralAddress = _newReferralAddress;
+    }
+
     /// @notice used to rescue stuck tokens that were sent to the contract by mistake
-    function rescueTokens(address _token, uint256 _amount) external onlyOwner() {
+    function rescueTokens(address _token, uint256 _amount) external onlyOwner(){
         if (_token == address(0)){
             (bool success, ) = payable(msg.sender).call{value: _amount}("");
             require(success, "transfer failed");
