@@ -7,18 +7,18 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-import { IAToken } from "./interfaces/IAToken.sol";
-import { IDebtToken } from "./interfaces/IDebtToken.sol";
+import { IAToken } from "../interfaces/IAToken.sol";
+import { IDebtToken } from "../interfaces/IDebtToken.sol";
 
-import { IPool } from "./interfaces/IPool.sol";
-import { DataTypes } from "./interfaces/DataTypes.sol";
+import { IPool } from "../interfaces/IPool.sol";
+import { DataTypes } from "../interfaces/DataTypes.sol";
 
-import { Looping } from "./Looping.sol";
+import { Looping } from "../Looping.sol";
 
 /// @title PositionsManager
 /// @author HyperLend
 /// @notice Contract used to manage leveraged positions
-contract PositionsManager is Ownable {
+contract PositionsManagerDeprecated is Ownable {
     /// @param _owner initial owner of the PositionManager
     constructor(address _owner) Ownable(_owner){}
 

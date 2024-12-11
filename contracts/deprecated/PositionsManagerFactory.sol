@@ -2,9 +2,9 @@
 pragma solidity 0.8.24;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { PositionsManager } from "./PositionsManager.sol";
+import { PositionsManagerDeprecated } from "./PositionsManager.sol";
 
-contract PositionsManagerFactory is Ownable {
+contract PositionsManagerFactoryDeprecated is Ownable {
     /// @notice mapping of user => positionManager contract
     mapping(address => address) public userPositionManagers;
 
@@ -17,7 +17,7 @@ contract PositionsManagerFactory is Ownable {
     function createPositionManager() external {
         require(userPositionManagers[msg.sender] == address(0), "positionManager already created");
 
-        PositionsManager _posManager = new PositionsManager(msg.sender);
+        PositionsManagerDeprecated _posManager = new PositionsManagerDeprecated(msg.sender);
         userPositionManagers[msg.sender] = address(_posManager);
         length++;
 
