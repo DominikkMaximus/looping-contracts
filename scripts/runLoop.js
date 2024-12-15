@@ -22,7 +22,7 @@ async function main(){
     const hYieldToken = "0xde72990638db12f8AA4cd9406bA6c648153A5cEA"
     const debtAssetVariableDebtToken = "0xE5C5E18723991AF5D2a640f6C9667D48741429E6" //WETHVariableDebt
     const initialAmount = (0.1 * Math.pow(10, 18)).toString() //ETH
-    const flashloanAmount = (0.25 * Math.pow(10, 18)).toString() //ETH
+    const flashloanAmount = (0.2 * Math.pow(10, 18)).toString() //ETH
     const minAmountOut = 0;
 
     const debtInstance = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", debtAsset)

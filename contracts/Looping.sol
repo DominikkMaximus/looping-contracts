@@ -49,6 +49,7 @@ contract Looping is Ownable, ReentrancyGuard {
     /// @param _flashloanAmount amount of the _debtAsset we want to flashloan and then swap to _yieldAsset
     /// @param _minAmountOut minimum amount of _yieldAsset we can receive after swapping _debtAsset
     /// @param _path path used to swap from _debtAsset to _yieldAsset
+    /// @param _startWithYield user provides _yieldAsset initially, otherwise we use _debtAsset
     function openPosition(
         address _pool, 
         address _swapper,
@@ -57,12 +58,21 @@ contract Looping is Ownable, ReentrancyGuard {
         uint256 _initialAmount, 
         uint256 _flashloanAmount, 
         uint256 _minAmountOut,
-        address[] memory _path
+        address[] memory _path,
+        bool _startWithYield
     ) external nonReentrant() {
         require(pools[_pool], "pool not allowed");
 
-        //transfer initial _debtAsset from user
-        IERC20(_debtAsset).transferFrom(msg.sender, address(this), _initialAmount);
+        if (_startWithYield){
+            //transfer initial _yieldAsset from user
+            IERC20(_yieldAsset).transferFrom(msg.sender, address(this), _initialAmount);
+            //calculate minAmountOut and swap from yieldAsset to debtAsset
+            uint256 minAmountOut = (_flashloanAmount / _minAmountOut) * _initialAmount;
+            _initialAmount = _swap(_swapper, _reversePath(_path), _initialAmount, minAmountOut);
+        } else {
+            //transfer initial _debtAsset from user
+            IERC20(_debtAsset).transferFrom(msg.sender, address(this), _initialAmount);
+        }
 
         //use flashloan to borrow _debtAsset
         uint256 repaymentAmount = _flashloanAmount - _initialAmount;
@@ -193,6 +203,20 @@ contract Looping is Ownable, ReentrancyGuard {
 
         //swap yield token to debt token
         _swap(swapper, path, withdrawAmount, minAmountOut);
+    }
+
+    /// @notice reverse an array of addresses
+    function _reversePath(address[] memory _array) public pure returns(address[] memory) {
+        uint length = _array.length;
+        address[] memory reversedArray = new address[](length);
+        uint j = 0;
+
+        for(uint i = length; i >= 1; i--) {
+            reversedArray[j] = _array[i-1];
+            j++;
+        }
+
+        return reversedArray;
     }
 
     /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/

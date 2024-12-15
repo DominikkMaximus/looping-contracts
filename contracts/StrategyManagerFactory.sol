@@ -10,8 +10,8 @@ import { StrategyManager } from "./StrategyManager.sol";
 contract StrategyManagerFactory is Ownable {
     /// @notice mapping of user => StrategyManager contract
     mapping(address => address[]) public userStrategies;
-    /// @notice mapping of user => strategyId => exists
-    mapping(address => mapping(bytes32 => bool)) public existingStrategies;
+    /// @notice mapping of user => strategyId => stratAddress
+    mapping(address => mapping(bytes32 => address)) public existingStrategies;
 
     /// @notice event emitted when new StrategyManager contract is created
     event StrategyDeployed(address indexed owner, address indexed stratManager, address pool, address yieldAsset, address debtAsset);
@@ -23,11 +23,11 @@ contract StrategyManagerFactory is Ownable {
     /// @param _yieldAsset address of the asset to be supplied
     /// @param _debtAsset address of the asset to be borrowed
     function createStrategyManager(address _pool, address _yieldAsset, address _debtAsset) external {
-        require(existingStrategies[msg.sender][getStrategyId(_pool, _yieldAsset, _debtAsset)] == false, "strategy already exists");
+        require(existingStrategies[msg.sender][getStrategyId(_pool, _yieldAsset, _debtAsset)] == address(0), "strategy already exists");
 
         StrategyManager _stratManager = new StrategyManager(msg.sender, _pool, _yieldAsset, _debtAsset);
         userStrategies[msg.sender].push(address(_stratManager));
-        existingStrategies[msg.sender][getStrategyId(_pool, _yieldAsset, _debtAsset)] = true;
+        existingStrategies[msg.sender][getStrategyId(_pool, _yieldAsset, _debtAsset)] = address(_stratManager);
 
         emit StrategyDeployed(msg.sender, address(_stratManager), _pool, _yieldAsset, _debtAsset);
     }
@@ -40,5 +40,10 @@ contract StrategyManagerFactory is Ownable {
     /// @notice get all users strategyManager addresses
     function getUserStrategyManagers(address _user) external view returns (address[] memory) {
         return userStrategies[_user];
+    }
+
+    /// @notice get strategyManager address for certain pool & assets
+    function getUserStrategyManager(address _user, address _pool, address _yieldAsset, address _debtAsset) external view returns (address) {
+        return existingStrategies[_user][getStrategyId(_pool, _yieldAsset, _debtAsset)];
     }
 }

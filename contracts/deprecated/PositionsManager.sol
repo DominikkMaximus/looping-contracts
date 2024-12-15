@@ -82,7 +82,8 @@ contract PositionsManagerDeprecated is Ownable {
             params.initialAmount,
             params.flashloanAmount,
             params.minAmountOut,
-            params.path
+            params.path,
+            false
         );
 
         uint256 yieldBalanceScaledAfter = IAToken(yieldReserveData.aTokenAddress).scaledBalanceOf(address(this));

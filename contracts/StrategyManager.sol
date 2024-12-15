@@ -11,6 +11,13 @@ contract StrategyManager is Ownable {
     address public yieldAsset;
     address public debtAsset;
 
+    struct Call {
+        address target;
+        uint256 value;
+        bytes data;
+        bool allowRevert;
+    }
+
     constructor(
         address _owner,
         address _pool,
@@ -28,14 +35,9 @@ contract StrategyManager is Ownable {
         return returnData;
     }
 
-    function executeMultiCall(
-        address[] memory targets,
-        uint256[] memory values,
-        bytes[] memory data,
-        bool[] memory allowReverts
-    ) external onlyOwner() {
-        for (uint256 i  = 0; i < targets.length; i++){
-            executeCall(targets[i], values[i], data[i], allowReverts[i]);
+    function executeMultiCall(Call[] memory calls) external onlyOwner() {
+        for (uint256 i  = 0; i < calls.length; i++){
+            executeCall(calls[i].target, calls[i].value, calls[i].data, calls[i].allowRevert);
         }
     }
 }
