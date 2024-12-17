@@ -2,5 +2,5 @@
 pragma solidity ^0.8.0;
 
 interface IAToken {
-    function scaledBalanceOf(address user) external returns (uint256);
+    function scaledBalanceOf(address user) external view returns (uint256);
 }
