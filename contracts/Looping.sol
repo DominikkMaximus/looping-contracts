@@ -67,7 +67,7 @@ contract Looping is Ownable, ReentrancyGuard {
             //transfer initial _yieldAsset from user
             IERC20(_yieldAsset).transferFrom(msg.sender, address(this), _initialAmount);
             //calculate minAmountOut and swap from yieldAsset to debtAsset
-            uint256 minAmountOut = (_flashloanAmount / _minAmountOut) * _initialAmount;
+            uint256 minAmountOut = (_flashloanAmount * 1e8 / _minAmountOut) * _initialAmount / 1e8;
             _initialAmount = _swap(_swapper, _reversePath(_path), _initialAmount, minAmountOut);
         } else {
             //transfer initial _debtAsset from user
@@ -161,7 +161,7 @@ contract Looping is Ownable, ReentrancyGuard {
         //swap flashloaned debt token to yield token
         uint256 yieldAmount = _swap(swapper, path, amount, minAmountOut);
 
-        //supply yield tokens, note: msg.sender is now pool
+        //supply yield tokens, note: msg.sender is now lending pool
         IERC20(yieldAsset).approve(msg.sender, yieldAmount);
         IPool(msg.sender).supply(yieldAsset, yieldAmount, user, 0);
 
@@ -191,7 +191,7 @@ contract Looping is Ownable, ReentrancyGuard {
             withdrawAmount = hYieldToken.balanceOf(user);
         }
 
-        //repay debt, note: msg.sender is now the pool
+        //repay debt, note: msg.sender is now the lending pool
         IERC20(debtAsset).approve(msg.sender, repaymentAmount);
         IPool(msg.sender).repay(debtAsset, repaymentAmount, 2, user);
 
@@ -203,20 +203,6 @@ contract Looping is Ownable, ReentrancyGuard {
 
         //swap yield token to debt token
         _swap(swapper, path, withdrawAmount, minAmountOut);
-    }
-
-    /// @notice reverse an array of addresses
-    function _reversePath(address[] memory _array) public pure returns(address[] memory) {
-        uint length = _array.length;
-        address[] memory reversedArray = new address[](length);
-        uint j = 0;
-
-        for(uint i = length; i >= 1; i--) {
-            reversedArray[j] = _array[i-1];
-            j++;
-        }
-
-        return reversedArray;
     }
 
     /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
@@ -262,6 +248,20 @@ contract Looping is Ownable, ReentrancyGuard {
         if (yieldAssetBalance > 0){
             IERC20(yieldAsset).transfer(user, yieldAssetBalance);
         }
+    }
+
+    /// @notice reverse an array of addresses
+    function _reversePath(address[] memory _array) public pure returns(address[] memory) {
+        uint length = _array.length;
+        address[] memory reversedArray = new address[](length);
+        uint j = 0;
+
+        for(uint i = length; i >= 1; i--) {
+            reversedArray[j] = _array[i-1];
+            j++;
+        }
+
+        return reversedArray;
     }
 
     /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
