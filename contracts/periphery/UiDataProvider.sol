@@ -33,12 +33,20 @@ contract UiDataProvider {
         address debtAsset;
         uint256 healthFactor;
         int256 positionValueUsd;
-        uint256 debtValueUsd;
-        uint256 yieldValueUsd;
         uint256 leverage;
         uint256 liquidationThreshold;
         uint256 yieldLiquidityRate;
         uint256 debtVariableBorrowRate;
+        string yieldSymbol;
+        string debtSymbol;
+        Balances balances;
+    }
+
+    struct Balances {
+        uint256 debtBalance;
+        uint256 yieldBalance;
+        uint256 debtValueUsd;
+        uint256 yieldValueUsd;
     }
 
     function getUserStrategies(address _factory, address _user) public view returns (UserStrategies memory) {
@@ -69,11 +77,12 @@ contract UiDataProvider {
     }
 
     function getUserStrategiesDetailed(address _factory, address _user) public view returns (StrategyDetailed[] memory){
-        UserStrategies memory userStrategies = getUserStrategies(_factory, _user);
+        StrategyManagerFactory factory = StrategyManagerFactory(_factory);
+        address[] memory managers = factory.getUserStrategyManagers(_user);
 
-        StrategyDetailed[] memory userStrategyDetailedArray = new StrategyDetailed[](userStrategies.strategyManagers.length);
-        for (uint256 i = 0; i < userStrategies.strategyManagers.length; i++){
-            userStrategyDetailedArray[i] = getStrategy(userStrategies.strategyManagers[i].manager);
+        StrategyDetailed[] memory userStrategyDetailedArray = new StrategyDetailed[](managers.length);
+        for (uint256 i = 0; i < managers.length; i++){
+            userStrategyDetailedArray[i] = getStrategy(managers[i]);
         }
 
         return userStrategyDetailedArray;
@@ -116,11 +125,21 @@ contract UiDataProvider {
             vars.debtPrice = oracle.getAssetPrice(vars.debtAssetAddr);
             vars.yieldPrice = oracle.getAssetPrice(vars.yieldAssetAddr);
 
-            debtValueUsd = vars.aYieldToken.scaledBalanceOf(_manager) * vars.debtPrice; 
-            yieldValueUsd = vars.variableDebtToken.scaledBalanceOf(_manager) * vars.yieldPrice;
+            yieldValueUsd = vars.aYieldToken.scaledBalanceOf(_manager) * vars.yieldPrice; 
+            debtValueUsd = vars.variableDebtToken.scaledBalanceOf(_manager) * vars.debtPrice;
 
             vars.denominator = yieldValueUsd > debtValueUsd ? (yieldValueUsd - debtValueUsd) : 1; 
             leverage = yieldValueUsd / vars.denominator;
+        }
+
+        Balances memory balances;
+        {
+            balances = Balances({
+                debtBalance: vars.variableDebtToken.scaledBalanceOf(_manager),
+                yieldBalance: vars.aYieldToken.scaledBalanceOf(_manager),
+                debtValueUsd: debtValueUsd,
+                yieldValueUsd: yieldValueUsd
+            });
         }
 
         (
@@ -136,12 +155,13 @@ contract UiDataProvider {
             debtAsset: manager.debtAsset(),
             healthFactor: healthFactor,
             positionValueUsd: positionValueUsd,
-            debtValueUsd: debtValueUsd,
-            yieldValueUsd: yieldValueUsd,
             leverage: leverage,
             liquidationThreshold: currentLiquidationThreshold,
             yieldLiquidityRate: vars.yieldReserve.currentLiquidityRate,
-            debtVariableBorrowRate: vars.debtReserve.currentVariableBorrowRate
+            debtVariableBorrowRate: vars.debtReserve.currentVariableBorrowRate,
+            yieldSymbol: IERC20Metadata(manager.yieldAsset()).symbol(),
+            debtSymbol: IERC20Metadata(manager.debtAsset()).symbol(),
+            balances: balances
         });
     }
 
