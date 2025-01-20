@@ -51,6 +51,7 @@ contract Looping is Ownable, ReentrancyGuard {
     /// @param _path path used to swap from _debtAsset to _yieldAsset
     /// @param _startWithYield user provides _yieldAsset initially, otherwise we use _debtAsset
     /// @param _minInitialAmountOut minimum output when swapping from yield to debt token (if _startWithYield is true)
+    /// @param _deadline deadline for swapping tokens
     function openPosition(
         address _pool, 
         address _swapper,
@@ -61,7 +62,8 @@ contract Looping is Ownable, ReentrancyGuard {
         uint256 _minAmountOut,
         address[] memory _path,
         bool _startWithYield,
-        uint256 _minInitialAmountOut
+        uint256 _minInitialAmountOut,
+        uint256 _deadline
     ) external nonReentrant() {
         require(pools[_pool], "pool not allowed");
 
@@ -69,7 +71,7 @@ contract Looping is Ownable, ReentrancyGuard {
             //transfer initial _yieldAsset from user
             IERC20(_yieldAsset).safeTransferFrom(msg.sender, address(this), _initialAmount);
             //swap from yieldAsset to debtAsset
-            _initialAmount = _swap(_swapper, _reversePath(_path), _initialAmount, _minInitialAmountOut);
+            _initialAmount = _swap(_swapper, _reversePath(_path), _initialAmount, _minInitialAmountOut, _deadline);
         } else {
             //transfer initial _debtAsset from user
             IERC20(_debtAsset).safeTransferFrom(msg.sender, address(this), _initialAmount);
@@ -77,7 +79,7 @@ contract Looping is Ownable, ReentrancyGuard {
 
         //use flashloan to borrow _debtAsset
         uint256 repaymentAmount = _flashloanAmount - _initialAmount;
-        bytes memory params = abi.encode(0, _yieldAsset, _swapper, _path, repaymentAmount, _minAmountOut, msg.sender, 0);
+        bytes memory params = abi.encode(0, _yieldAsset, _swapper, _path, repaymentAmount, _minAmountOut, msg.sender, 0, _deadline);
         IPool(_pool).flashLoanSimple(address(this), _debtAsset, _flashloanAmount, params, 0);
     }
 
@@ -90,6 +92,7 @@ contract Looping is Ownable, ReentrancyGuard {
     /// @param _minAmountOut minimum amount of _yieldAsset we can receive after swapping _debtAsset
     /// @param _path path used to swap from _debtAsset to _yieldAsset
     /// @param _withdrawAmount amount of yield token we need to withdraw to repay the flashloan (when swapped to _debtAsset, output should be > _flashloanAmount+premium)
+    /// @param _deadline deadline for swapping tokens
     function closePosition(
         address _pool, 
         address _swapper,
@@ -98,12 +101,13 @@ contract Looping is Ownable, ReentrancyGuard {
         uint256 _flashloanAmount, 
         uint256 _minAmountOut,
         address[] memory _path,
-        uint256 _withdrawAmount
+        uint256 _withdrawAmount,
+        uint256 _deadline
     ) external nonReentrant() {
         require(pools[_pool], "pool not allowed");
 
         //use flashloan to borrow _debtAsset
-        bytes memory params = abi.encode(1, _yieldAsset, _swapper, _path, _flashloanAmount, _minAmountOut, msg.sender, _withdrawAmount);
+        bytes memory params = abi.encode(1, _yieldAsset, _swapper, _path, _flashloanAmount, _minAmountOut, msg.sender, _withdrawAmount, _deadline);
         IPool(_pool).flashLoanSimple(address(this), _debtAsset, _flashloanAmount, params, 0);
     }
 
@@ -124,7 +128,7 @@ contract Looping is Ownable, ReentrancyGuard {
         require(initiator == address(this), "initiator != address(this)");
 
         //actionType: 0 = open position, 1 = close position
-        ( uint8 actionType, address yieldAsset, , , , , address user , ) = abi.decode(params, (uint8, address, address, address[], uint256, uint256, address, uint256));
+        ( uint8 actionType, address yieldAsset, , , , , address user , ,) = abi.decode(params, (uint8, address, address, address[], uint256, uint256, address, uint256, uint256));
 
         if (actionType == 0){
             _executeOpenPosition(params, debtAsset, amount, premium);
@@ -155,12 +159,13 @@ contract Looping is Ownable, ReentrancyGuard {
             address[] memory path, 
             uint256 repaymentAmount,
             uint256 minAmountOut,
-            address user
+            address user,
             ,
-        ) = abi.decode(params, (uint8, address, address, address[], uint256, uint256, address, uint256));
+            uint256 deadline
+        ) = abi.decode(params, (uint8, address, address, address[], uint256, uint256, address, uint256, uint256));
 
         //swap flashloaned debt token to yield token
-        uint256 yieldAmount = _swap(swapper, path, amount, minAmountOut);
+        uint256 yieldAmount = _swap(swapper, path, amount, minAmountOut, deadline);
 
         //supply yield tokens, note: msg.sender is now lending pool
         IERC20(yieldAsset).safeIncreaseAllowance(msg.sender, yieldAmount);
@@ -180,8 +185,9 @@ contract Looping is Ownable, ReentrancyGuard {
             uint256 repaymentAmount, //=flashloanAmount
             uint256 minAmountOut,
             address user,
-            uint256 withdrawAmount
-        ) = abi.decode(params, (uint8, address, address, address[], uint256, uint256, address, uint256));
+            uint256 withdrawAmount,
+            uint256 deadline
+        ) = abi.decode(params, (uint8, address, address, address[], uint256, uint256, address, uint256, uint256));
 
         IERC20 hYieldToken = IERC20(IPool(msg.sender).getReserveData(yieldAsset).aTokenAddress);
         IERC20 debtDebtToken = IERC20(IPool(msg.sender).getReserveData(yieldAsset).variableDebtTokenAddress);
@@ -203,7 +209,7 @@ contract Looping is Ownable, ReentrancyGuard {
         IPool(msg.sender).withdraw(yieldAsset, withdrawAmount, address(this));
 
         //swap yield token to debt token
-        _swap(swapper, path, withdrawAmount, minAmountOut);
+        _swap(swapper, path, withdrawAmount, minAmountOut, deadline);
     }
 
     /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
@@ -215,7 +221,7 @@ contract Looping is Ownable, ReentrancyGuard {
     /// @param path path we want to use when swapping
     /// @param minAmountOut minimum amount fo yield token we want to receive
     /// @return amountOut amount of output token received after the swap
-    function _swap(address swapper, address[] memory path, uint256 amountToSwap, uint256 minAmountOut) internal returns (uint256) {
+    function _swap(address swapper, address[] memory path, uint256 amountToSwap, uint256 minAmountOut, uint256 deadline) internal returns (uint256) {
         require(swappers[swapper], "swapper not allowed");
 
         IERC20(path[0]).safeIncreaseAllowance(swapper, amountToSwap);
@@ -227,7 +233,7 @@ contract Looping is Ownable, ReentrancyGuard {
             path,
             address(this),
             referralAddress,
-            block.timestamp
+            deadline
         );
         uint256 balanceAfter = IERC20(path[path.length-1]).balanceOf(address(this));
 
