@@ -187,7 +187,7 @@ contract Looping is Ownable, ReentrancyGuard {
         IERC20 debtDebtToken = IERC20(IPool(msg.sender).getReserveData(yieldAsset).variableDebtTokenAddress);
 
         //close full position if repaymentAmount == maxUint256
-        if (repaymentAmount == type(uint256).max){
+        if (withdrawAmount == type(uint256).max){
             repaymentAmount = debtDebtToken.balanceOf(user);
             withdrawAmount = hYieldToken.balanceOf(user);
         }
