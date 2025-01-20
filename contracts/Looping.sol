@@ -50,6 +50,7 @@ contract Looping is Ownable, ReentrancyGuard {
     /// @param _minAmountOut minimum amount of _yieldAsset we can receive after swapping _debtAsset
     /// @param _path path used to swap from _debtAsset to _yieldAsset
     /// @param _startWithYield user provides _yieldAsset initially, otherwise we use _debtAsset
+    /// @param _minInitialAmountOut minimum output when swapping from yield to debt token (if _startWithYield is true)
     function openPosition(
         address _pool, 
         address _swapper,
@@ -59,16 +60,16 @@ contract Looping is Ownable, ReentrancyGuard {
         uint256 _flashloanAmount, 
         uint256 _minAmountOut,
         address[] memory _path,
-        bool _startWithYield
+        bool _startWithYield,
+        uint256 _minInitialAmountOut
     ) external nonReentrant() {
         require(pools[_pool], "pool not allowed");
 
         if (_startWithYield){
             //transfer initial _yieldAsset from user
             IERC20(_yieldAsset).transferFrom(msg.sender, address(this), _initialAmount);
-            //calculate minAmountOut and swap from yieldAsset to debtAsset
-            uint256 minAmountOut = (_flashloanAmount * 1e8 / _minAmountOut) * _initialAmount / 1e8;
-            _initialAmount = _swap(_swapper, _reversePath(_path), _initialAmount, minAmountOut);
+            //swap from yieldAsset to debtAsset
+            _initialAmount = _swap(_swapper, _reversePath(_path), _initialAmount, _minInitialAmountOut);
         } else {
             //transfer initial _debtAsset from user
             IERC20(_debtAsset).transferFrom(msg.sender, address(this), _initialAmount);
