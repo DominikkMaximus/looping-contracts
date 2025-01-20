@@ -29,13 +29,13 @@ contract StrategyManager is Ownable {
         debtAsset = _debtAsset;
     }
 
-    function executeCall(address target, uint256 value, bytes memory data, bool allowRevert) public onlyOwner() returns (bytes memory) {
+    function executeCall(address target, uint256 value, bytes memory data, bool allowRevert) public payable onlyOwner() returns (bytes memory) {
         (bool success, bytes memory returnData) = target.call{value: value}(data);
         if (!allowRevert) require(success, 'execution reverted');
         return returnData;
     }
 
-    function executeMultiCall(Call[] memory calls) external onlyOwner() {
+    function executeMultiCall(Call[] memory calls) external payable onlyOwner() {
         for (uint256 i  = 0; i < calls.length; i++){
             executeCall(calls[i].target, calls[i].value, calls[i].data, calls[i].allowRevert);
         }
