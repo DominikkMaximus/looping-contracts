@@ -67,12 +67,12 @@ contract Looping is Ownable, ReentrancyGuard {
 
         if (_startWithYield){
             //transfer initial _yieldAsset from user
-            IERC20(_yieldAsset).transferFrom(msg.sender, address(this), _initialAmount);
+            IERC20(_yieldAsset).safeTransferFrom(msg.sender, address(this), _initialAmount);
             //swap from yieldAsset to debtAsset
             _initialAmount = _swap(_swapper, _reversePath(_path), _initialAmount, _minInitialAmountOut);
         } else {
             //transfer initial _debtAsset from user
-            IERC20(_debtAsset).transferFrom(msg.sender, address(this), _initialAmount);
+            IERC20(_debtAsset).safeTransferFrom(msg.sender, address(this), _initialAmount);
         }
 
         //use flashloan to borrow _debtAsset
@@ -136,7 +136,7 @@ contract Looping is Ownable, ReentrancyGuard {
         _refund(debtAsset, yieldAsset, amount, premium, user);
 
         //approve pool so it can pull the funds to repay the flashloan
-        IERC20(debtAsset).approve(msg.sender, amount + premium);
+        IERC20(debtAsset).safeIncreaseAllowance(msg.sender, amount + premium);
 
         return true;
     }
@@ -163,7 +163,7 @@ contract Looping is Ownable, ReentrancyGuard {
         uint256 yieldAmount = _swap(swapper, path, amount, minAmountOut);
 
         //supply yield tokens, note: msg.sender is now lending pool
-        IERC20(yieldAsset).approve(msg.sender, yieldAmount);
+        IERC20(yieldAsset).safeIncreaseAllowance(msg.sender, yieldAmount);
         IPool(msg.sender).supply(yieldAsset, yieldAmount, user, 0);
 
         //borrow debt token, so we have enough to repay the flashloan
@@ -193,11 +193,11 @@ contract Looping is Ownable, ReentrancyGuard {
         }
 
         //repay debt, note: msg.sender is now the lending pool
-        IERC20(debtAsset).approve(msg.sender, repaymentAmount);
+        IERC20(debtAsset).safeIncreaseAllowance(msg.sender, repaymentAmount);
         IPool(msg.sender).repay(debtAsset, repaymentAmount, 2, user);
 
         //get address of the hToken and transfer it from user, so we can withdraw it
-        hYieldToken.transferFrom(user, address(this), withdrawAmount);
+        hYieldToken.safeTransferFrom(user, address(this), withdrawAmount);
 
         //withdraw yield token
         IPool(msg.sender).withdraw(yieldAsset, withdrawAmount, address(this));
@@ -218,7 +218,7 @@ contract Looping is Ownable, ReentrancyGuard {
     function _swap(address swapper, address[] memory path, uint256 amountToSwap, uint256 minAmountOut) internal returns (uint256) {
         require(swappers[swapper], "swapper not allowed");
 
-        IERC20(path[0]).approve(swapper, amountToSwap);
+        IERC20(path[0]).safeIncreaseAllowance(swapper, amountToSwap);
 
         uint256 balanceBefore = IERC20(path[path.length-1]).balanceOf(address(this));
         ISwapper(swapper).swapExactTokensForTokensSupportingFeeOnTransferTokens(
@@ -244,10 +244,10 @@ contract Looping is Ownable, ReentrancyGuard {
         uint256 yieldAssetBalance = IERC20(yieldAsset).balanceOf(address(this));
 
         if (debtAssetBalance > amount + premium){
-            IERC20(debtAsset).transfer(user, debtAssetBalance - (amount + premium));
+            IERC20(debtAsset).safeTransfer(user, debtAssetBalance - (amount + premium));
         }
         if (yieldAssetBalance > 0){
-            IERC20(yieldAsset).transfer(user, yieldAssetBalance);
+            IERC20(yieldAsset).safeTransfer(user, yieldAssetBalance);
         }
     }
 
@@ -290,7 +290,7 @@ contract Looping is Ownable, ReentrancyGuard {
             (bool success, ) = payable(msg.sender).call{value: _amount}("");
             require(success, "transfer failed");
         } else {
-            IERC20(_token).transfer(msg.sender, _amount);
+            IERC20(_token).safeTransfer(msg.sender, _amount);
         }
     }
 }
