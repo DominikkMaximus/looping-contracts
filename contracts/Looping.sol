@@ -66,6 +66,9 @@ contract Looping is Ownable, ReentrancyGuard {
         uint256 _deadline
     ) external nonReentrant() {
         require(pools[_pool], "pool not allowed");
+        
+        //transfer any funds accidentally sent/stuck in the contract to the owner first
+        _refund(_debtAsset, _yieldAsset, 0, 0, owner());
 
         if (_startWithYield){
             //transfer initial _yieldAsset from user
@@ -105,6 +108,9 @@ contract Looping is Ownable, ReentrancyGuard {
         uint256 _deadline
     ) external nonReentrant() {
         require(pools[_pool], "pool not allowed");
+
+        //transfer any funds accidentally sent/stuck in the contract to the owner first
+        _refund(_debtAsset, _yieldAsset, 0, 0, owner());
 
         //use flashloan to borrow _debtAsset
         bytes memory params = abi.encode(1, _yieldAsset, _swapper, _path, _flashloanAmount, _minAmountOut, msg.sender, _withdrawAmount, _deadline);
