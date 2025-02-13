@@ -196,10 +196,10 @@ contract Looping is Ownable, ReentrancyGuard {
         ) = abi.decode(params, (uint8, address, address, address[], uint256, uint256, address, uint256, uint256));
 
         IERC20 hYieldToken = IERC20(IPool(msg.sender).getReserveData(yieldAsset).aTokenAddress);
-        IERC20 debtDebtToken = IERC20(IPool(msg.sender).getReserveData(yieldAsset).variableDebtTokenAddress);
 
         //close full position if repaymentAmount == maxUint256
         if (withdrawAmount == type(uint256).max){
+            IERC20 debtDebtToken = IERC20(IPool(msg.sender).getReserveData(debtAsset).variableDebtTokenAddress);
             repaymentAmount = debtDebtToken.balanceOf(user);
             withdrawAmount = hYieldToken.balanceOf(user);
         }
