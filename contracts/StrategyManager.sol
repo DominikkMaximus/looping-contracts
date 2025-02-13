@@ -8,9 +8,9 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 /// @notice contract used to manage custom strategy on behalf of the user
 contract StrategyManager is Ownable {
     /// @notice variables are used on the UI to identify which StrategyManager is used for certain pairs of assets
-    address public pool;
-    address public yieldAsset;
-    address public debtAsset;
+    address immutable public pool;
+    address immutable public yieldAsset;
+    address immutable public debtAsset;
 
     struct Call {
         address target;
