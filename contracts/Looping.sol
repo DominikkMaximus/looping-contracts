@@ -266,7 +266,7 @@ contract Looping is Ownable, ReentrancyGuard {
     }
 
     /// @notice reverse an array of addresses
-    function _reversePath(address[] memory _array) public pure returns(address[] memory) {
+    function _reversePath(address[] memory _array) internal pure returns(address[] memory) {
         uint length = _array.length;
         address[] memory reversedArray = new address[](length);
         uint j = 0;
