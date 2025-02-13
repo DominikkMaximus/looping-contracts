@@ -80,6 +80,8 @@ contract Looping is Ownable, ReentrancyGuard {
             IERC20(_debtAsset).safeTransferFrom(msg.sender, address(this), _initialAmount);
         }
 
+        require(_flashloanAmount >= _initialAmount, "_flashloanAmount < _initialAmount");
+
         //use flashloan to borrow _debtAsset
         uint256 repaymentAmount = _flashloanAmount - _initialAmount;
         bytes memory params = abi.encode(0, _yieldAsset, _swapper, _path, repaymentAmount, _minAmountOut, msg.sender, 0, _deadline);
