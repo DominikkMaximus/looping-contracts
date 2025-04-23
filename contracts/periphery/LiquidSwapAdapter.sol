@@ -21,6 +21,7 @@ contract LiquidSwapAdapter is ReentrancyGuard {
 
     /// @notice mapping of tokenIn/tokenOut routes: route = swapRoutes[tokenIn][tokenOut]
     mapping(address => mapping(address => ILiquidSwap.Swap[])) internal swapRoutes;
+    mapping(address => mapping(address => uint256)) internal lastUpdateBlock;
 
     /// @notice liquid swap router
     ILiquidSwap public liquidSwapRouter = ILiquidSwap(0x744489Ee3d540777A66f2cf297479745e0852f7A);
@@ -28,15 +29,20 @@ contract LiquidSwapAdapter is ReentrancyGuard {
     /// @notice wrapped hype
     IWrappedHype public WHYPE = IWrappedHype(0x5555555555555555555555555555555555555555);
 
-    uint256 public lastUpdateBlock = 0;
-
     constructor() {}
 
     /// @notice used to preset swap route, which will then be used in swapExactTokensForTokensSupportingFeeOnTransferTokens
     /// @dev this is done to avoid changing the existing Looping.sol contract, while adding smarter routing
     function setSwapPath(address tokenIn, address tokenOut, ILiquidSwap.Swap[] calldata paths) external {
-        swapRoutes[tokenIn][tokenOut] = paths;
-        lastUpdateBlock = block.number;
+        //clear existing path
+        delete swapRoutes[tokenIn][tokenOut];
+
+        //allocate and copy manually
+        for (uint256 i = 0; i < paths.length; ++i) {
+            swapRoutes[tokenIn][tokenOut].push(paths[i]);
+        }
+        
+        lastUpdateBlock[tokenIn][tokenOut] = block.number;
     }
 
     function swapExactTokensForTokensSupportingFeeOnTransferTokens(
@@ -48,10 +54,11 @@ contract LiquidSwapAdapter is ReentrancyGuard {
         uint deadline
     ) external nonReentrant() {
         require(block.timestamp < deadline, "Swapper: expired");
-        require(lastUpdateBlock == block.number, "Swapper: path not set in this block");
 
         address tokenIn = path[0];
         address tokenOut = path[path.length - 1];
+        require(lastUpdateBlock[tokenIn][tokenOut] == block.number, "Swapper: path not set in this block");
+        
         //use the latest swap path (which must be set in the same transaction)
         ILiquidSwap.Swap[] memory paths = swapRoutes[tokenIn][tokenOut];
 
