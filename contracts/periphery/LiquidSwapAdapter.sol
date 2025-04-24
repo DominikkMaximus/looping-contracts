@@ -72,7 +72,7 @@ contract LiquidSwapAdapter is ReentrancyGuard {
             WHYPE.deposit{value: address(this).balance}();
         }
 
-        uint256 balanceOut = IERC20(tokenOut).balanceOf(tokenOut);
+        uint256 balanceOut = IERC20(tokenOut).balanceOf(address(this));
         require(balanceOut >= amountOutMin, "Swapper: minAmountOut > balanceOut");
         IERC20(tokenOut).transfer(to, balanceOut);
     }
@@ -80,4 +80,6 @@ contract LiquidSwapAdapter is ReentrancyGuard {
     function getSwapRoute(address tokenIn, address tokenOut) external view returns (ILiquidSwap.Swap[] memory) {
         return swapRoutes[tokenIn][tokenOut];
     }
+
+    fallback() external payable {}
 }
