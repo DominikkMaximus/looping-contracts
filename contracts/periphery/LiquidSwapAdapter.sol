@@ -19,8 +19,13 @@ import { ILiquidSwap } from "../interfaces/ILiquidSwap.sol";
 contract LiquidSwapAdapter is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    struct SwapData {
+        ILiquidSwap.Swap[][] hops;
+        address[] tokens;
+    }
+
     /// @notice mapping of tokenIn/tokenOut routes: route = swapRoutes[tokenIn][tokenOut]
-    mapping(address => mapping(address => ILiquidSwap.Swap[])) internal swapRoutes;
+    mapping(address => mapping(address => SwapData)) internal swapRoutes;
     mapping(address => mapping(address => uint256)) internal lastUpdateBlock;
     mapping(address => mapping(address => bool)) internal useMultiHop;
 
@@ -34,17 +39,26 @@ contract LiquidSwapAdapter is ReentrancyGuard {
 
     /// @notice used to preset swap route, which will then be used in swapExactTokensForTokensSupportingFeeOnTransferTokens
     /// @dev this is done to avoid changing the existing Looping.sol contract, while adding smarter routing
-    function setSwapPath(address tokenIn, address tokenOut, ILiquidSwap.Swap[] calldata paths, bool _useMultiHop) external {
+    function setSwapPath(address[] calldata tokens, address tokenIn, address tokenOut, ILiquidSwap.Swap[][] calldata hops) external {
         //clear existing path
-        delete swapRoutes[tokenIn][tokenOut];
+        delete swapRoutes[tokenIn][tokenOut].hops;
+        delete swapRoutes[tokenIn][tokenOut].tokens;
 
         //allocate and copy manually
-        for (uint256 i = 0; i < paths.length; ++i) {
-            swapRoutes[tokenIn][tokenOut].push(paths[i]);
+        for (uint256 i = 0; i < hops.length; ++i) {
+            // push empty array first
+            swapRoutes[tokenIn][tokenOut].hops.push();
+
+            for (uint256 j = 0; j < hops[i].length; j++){
+                swapRoutes[tokenIn][tokenOut].hops[i].push(hops[i][j]);
+            }
+        }
+
+        for (uint256 i = 0; i < tokens.length; ++i) {
+            swapRoutes[tokenIn][tokenOut].tokens.push(tokens[i]);
         }
         
         lastUpdateBlock[tokenIn][tokenOut] = block.number;
-        useMultiHop[tokenIn][tokenOut] = _useMultiHop;
     }
 
     function swapExactTokensForTokensSupportingFeeOnTransferTokens(
@@ -62,18 +76,14 @@ contract LiquidSwapAdapter is ReentrancyGuard {
         require(lastUpdateBlock[tokenIn][tokenOut] == block.number, "Swapper: path not set in this block");
         
         //use the latest swap path (which must be set in the same transaction)
-        ILiquidSwap.Swap[] memory paths = swapRoutes[tokenIn][tokenOut];
+        ILiquidSwap.Swap[][] memory hops = swapRoutes[tokenIn][tokenOut].hops;
+        address[] memory tokens = swapRoutes[tokenIn][tokenOut].tokens;
 
         IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
         IERC20(tokenIn).approve(address(liquidSwapRouter), amountIn);
 
-        if (useMultiHop[tokenIn][tokenOut] == true){
-            liquidSwapRouter.executeMultiHopSwap(paths, amountIn, amountOutMin);
-        } else {
-            liquidSwapRouter.executeSwap(paths, amountIn, amountOutMin);
-        }
+        liquidSwapRouter.executeMultiHopSwap(tokens, amountIn, amountOutMin, hops);
         
-
         //since liquidswap router could send us some HYPE, we need to wrap it
         if (address(this).balance > 0){
             WHYPE.deposit{value: address(this).balance}();
@@ -84,8 +94,8 @@ contract LiquidSwapAdapter is ReentrancyGuard {
         IERC20(tokenOut).transfer(to, balanceOut);
     }
 
-    function getSwapRoute(address tokenIn, address tokenOut) external view returns (ILiquidSwap.Swap[] memory) {
-        return swapRoutes[tokenIn][tokenOut];
+    function getSwapRoute(address tokenIn, address tokenOut) external view returns (ILiquidSwap.Swap[][] memory) {
+        return swapRoutes[tokenIn][tokenOut].hops;
     }
 
     fallback() external payable {}

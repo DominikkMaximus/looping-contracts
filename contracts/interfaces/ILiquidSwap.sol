@@ -8,15 +8,10 @@ interface ILiquidSwap {
         bool stable; // Whether the pool is stable (only used for KittenSwap)
     }
 
-    function executeSwap(
-        Swap[] calldata swaps,
-        uint256 amountIn,
-        uint256 minAmountOut
-    ) external payable returns (uint256 totalAmountOut);
-
     function executeMultiHopSwap(
-        Swap[] calldata swaps,
+        address[] calldata tokens,
         uint256 amountIn,
-        uint256 minAmountOut
+        uint256 minAmountOut,
+        Swap[][] calldata hops
     ) external payable returns (uint256 totalAmountOut);
 }
