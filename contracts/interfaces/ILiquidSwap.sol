@@ -13,4 +13,10 @@ interface ILiquidSwap {
         uint256 amountIn,
         uint256 minAmountOut
     ) external payable returns (uint256 totalAmountOut);
+
+    function executeMultiHopSwap(
+        Swap[] calldata swaps,
+        uint256 amountIn,
+        uint256 minAmountOut
+    ) external payable returns (uint256 totalAmountOut);
 }

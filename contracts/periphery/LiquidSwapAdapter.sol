@@ -22,6 +22,7 @@ contract LiquidSwapAdapter is ReentrancyGuard {
     /// @notice mapping of tokenIn/tokenOut routes: route = swapRoutes[tokenIn][tokenOut]
     mapping(address => mapping(address => ILiquidSwap.Swap[])) internal swapRoutes;
     mapping(address => mapping(address => uint256)) internal lastUpdateBlock;
+    mapping(address => mapping(address => bool)) internal useMultiHop;
 
     /// @notice liquid swap router
     ILiquidSwap public liquidSwapRouter = ILiquidSwap(0x744489Ee3d540777A66f2cf297479745e0852f7A);
@@ -33,7 +34,7 @@ contract LiquidSwapAdapter is ReentrancyGuard {
 
     /// @notice used to preset swap route, which will then be used in swapExactTokensForTokensSupportingFeeOnTransferTokens
     /// @dev this is done to avoid changing the existing Looping.sol contract, while adding smarter routing
-    function setSwapPath(address tokenIn, address tokenOut, ILiquidSwap.Swap[] calldata paths) external {
+    function setSwapPath(address tokenIn, address tokenOut, ILiquidSwap.Swap[] calldata paths, bool _useMultiHop) external {
         //clear existing path
         delete swapRoutes[tokenIn][tokenOut];
 
@@ -43,6 +44,7 @@ contract LiquidSwapAdapter is ReentrancyGuard {
         }
         
         lastUpdateBlock[tokenIn][tokenOut] = block.number;
+        useMultiHop[tokenIn][tokenOut] = _useMultiHop;
     }
 
     function swapExactTokensForTokensSupportingFeeOnTransferTokens(
@@ -65,7 +67,12 @@ contract LiquidSwapAdapter is ReentrancyGuard {
         IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
         IERC20(tokenIn).approve(address(liquidSwapRouter), amountIn);
 
-        liquidSwapRouter.executeSwap(paths, amountIn, amountOutMin);
+        if (useMultiHop[tokenIn][tokenOut] == true){
+            liquidSwapRouter.executeMultiHopSwap(paths, amountIn, amountOutMin);
+        } else {
+            liquidSwapRouter.executeSwap(paths, amountIn, amountOutMin);
+        }
+        
 
         //since liquidswap router could send us some HYPE, we need to wrap it
         if (address(this).balance > 0){
