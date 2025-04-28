@@ -9,7 +9,7 @@ async function main(){
     // );
     // console.log(positionManager.target)
 
-    const Swapper = await ethers.getContractFactory("LiquidSwapAdapter");
-    const swapper = await Swapper.deploy();
-    console.log(swapper.target)
+    const Contract = await ethers.getContractFactory("StrategyManagerFactory");
+    const contract = await Contract.deploy();
+    console.log(contract.target)
 }

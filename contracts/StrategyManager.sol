@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { IPool } from "./interfaces/IPool.sol";
 
 /// @title StrategyManager
 /// @author HyperLend
@@ -57,6 +58,12 @@ contract StrategyManager is Ownable {
                 uint256 balance = IERC20(tokens[i]).balanceOf(address(this));
                 IERC20(tokens[i]).transfer(owner(), balance);
             }
+        }
+    }
+
+    function withdrawAllFromPool(address[] calldata tokens) external onlyOwner() {
+        for (uint256 i = 0; i < tokens.length; i++){
+            IPool(pool).withdraw(tokens[i], type(uint256).max, owner());
         }
     }
 
