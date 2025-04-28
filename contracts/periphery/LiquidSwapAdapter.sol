@@ -66,7 +66,7 @@ contract LiquidSwapAdapter is ReentrancyGuard {
         uint amountOutMin,
         address[] calldata path,
         address to,
-        address referrer, //unused
+        address, //referrer; unused in this implementation
         uint deadline
     ) external nonReentrant() {
         require(block.timestamp < deadline, "Swapper: expired");
@@ -99,4 +99,5 @@ contract LiquidSwapAdapter is ReentrancyGuard {
     }
 
     fallback() external payable {}
+    receive() external payable {}
 }
