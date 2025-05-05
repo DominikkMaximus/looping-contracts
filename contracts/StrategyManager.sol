@@ -35,6 +35,11 @@ contract StrategyManager is Ownable {
         debtAsset = _debtAsset;
     }
 
+    modifier onlyOwnerOrSelf(){
+      require(msg.sender == owner() || msg.sender == address(this), "only owner or self");
+      _;
+    }
+
     function executeCall(address target, uint256 value, bytes memory data, bool allowRevert) public payable onlyOwner() returns (bytes memory) {
         (bool success, bytes memory returnData) = target.call{value: value}(data);
         if (!allowRevert) {
@@ -49,7 +54,7 @@ contract StrategyManager is Ownable {
         }
     }
 
-    function cleanOutTokens(address[] memory tokens) external onlyOwner() {
+    function cleanOutTokens(address[] memory tokens) external onlyOwnerOrSelf() {
         for (uint256 i = 0; i < tokens.length; i++){
             if (tokens[i] == address(0)){
                     (bool sent,) = owner().call{value: address(this).balance}("");
@@ -61,7 +66,7 @@ contract StrategyManager is Ownable {
         }
     }
 
-    function withdrawAllFromPool(address[] calldata tokens) external onlyOwner() {
+    function withdrawAllFromPool(address[] calldata tokens) external onlyOwnerOrSelf() {
         for (uint256 i = 0; i < tokens.length; i++){
             IPool(pool).withdraw(tokens[i], type(uint256).max, owner());
         }
