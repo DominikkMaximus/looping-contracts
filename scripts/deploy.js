@@ -9,7 +9,11 @@ async function main(){
     // );
     // console.log(positionManager.target)
 
-    const Contract = await ethers.getContractFactory("StrategyManagerFactory");
+    // const Contract = await ethers.getContractFactory("StrategyManagerFactory");
+    // const contract = await Contract.deploy();
+    // console.log(contract.target)
+
+    const Contract = await ethers.getContractFactory("wHlpZapper");
     const contract = await Contract.deploy();
     console.log(contract.target)
 }
