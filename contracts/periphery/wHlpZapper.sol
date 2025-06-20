@@ -12,7 +12,7 @@ import { IWrappedHlpDepositor } from '../interfaces/IWrappedHlpDepositor.sol';
 
 /// @title wHlpZapper
 /// @author HyperLend
-/// @notice Contract used to swap tokens to USDT0 before depositing them to wHLP
+/// @notice Contract used to swap tokens to USDhl before depositing them to wHLP
 contract wHlpZapper is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
@@ -30,10 +30,10 @@ contract wHlpZapper is ReentrancyGuard, Ownable {
 
     constructor() Ownable(msg.sender) {}
 
-    /// @notice function used to swap from token X into USDT0 and then deposit it into wHLP vault
+    /// @notice function used to swap from token X into USDhl and then deposit it into wHLP vault
     /// @param tokenIn token user is swapping to wHLP
     /// @param amountIn amount of the input token
-    /// @param amountOutMin minimum USDT0 amount after the swap
+    /// @param amountOutMin minimum USDhl amount after the swap
     /// @param minimumMint minimum wHLP shares received
     /// @param to address that will receive wHLP
     /// @param deadline swap deadline
