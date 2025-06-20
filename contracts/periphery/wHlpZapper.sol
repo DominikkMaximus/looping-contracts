@@ -22,8 +22,8 @@ contract wHlpZapper is ReentrancyGuard, Ownable {
     /// @notice wrapped HLP depositor
     IWrappedHlpDepositor public depositor = IWrappedHlpDepositor(0x340C9f6159ABc2bdfCC0E2b9Fe91D739006b41c1);
 
-    /// @notice address of the vault deposit token (USDT0)
-    address public usdt0 = 0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb;
+    /// @notice address of the vault deposit token (USDhl)
+    address public usdhl = 0xb50A96253aBDF803D85efcDce07Ad8becBc52BD5;
 
     /// @notice `hyperlend` bytes
     bytes public communityCode = hex"68797065726c656e64";
@@ -56,11 +56,11 @@ contract wHlpZapper is ReentrancyGuard, Ownable {
 
         liquidSwapRouter.executeMultiHopSwap(tokens, amountIn, amountOutMin, hops);
 
-        uint256 balanceOut = IERC20(usdt0).balanceOf(address(this));
+        uint256 balanceOut = IERC20(usdhl).balanceOf(address(this));
         require(balanceOut >= amountOutMin, "wHlpZapper: minAmountOut > balanceOut");
 
-        IERC20(usdt0).approve(address(depositor), balanceOut);
-        depositor.deposit(usdt0, balanceOut, minimumMint, to, communityCode);
+        IERC20(usdhl).approve(address(depositor), balanceOut);
+        depositor.deposit(usdhl, balanceOut, minimumMint, to, communityCode);
     }
 
     /// @notice used to rescue stuck tokens that were sent to the contract by mistake
