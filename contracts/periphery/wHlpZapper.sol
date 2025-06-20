@@ -35,7 +35,6 @@ contract wHlpZapper is ReentrancyGuard, Ownable {
     /// @param amountIn amount of the input token
     /// @param amountOutMin minimum USDhl amount after the swap
     /// @param minimumMint minimum wHLP shares received
-    /// @param to address that will receive wHLP
     /// @param deadline swap deadline
     /// @param tokens list of tokens in LiquisSwap swap
     /// @param hops list of hops in LiquisSwap swap
@@ -44,7 +43,6 @@ contract wHlpZapper is ReentrancyGuard, Ownable {
         uint256 amountIn,
         uint256 amountOutMin,
         uint256 minimumMint,
-        address to,
         uint256 deadline,
         address[] calldata tokens, 
         ILiquidSwap.Swap[][] calldata hops
@@ -60,7 +58,7 @@ contract wHlpZapper is ReentrancyGuard, Ownable {
         require(balanceOut >= amountOutMin, "wHlpZapper: minAmountOut > balanceOut");
 
         IERC20(usdhl).approve(address(depositor), balanceOut);
-        depositor.deposit(usdhl, balanceOut, minimumMint, to, communityCode);
+        depositor.deposit(usdhl, balanceOut, minimumMint, msg.sender, communityCode);
     }
 
     /// @notice used to rescue stuck tokens that were sent to the contract by mistake
