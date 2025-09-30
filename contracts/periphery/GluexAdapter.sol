@@ -14,10 +14,6 @@ import {IWrappedHype} from "../interfaces/IWrappedHype.sol";
 contract GluexAdapter is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    /// @notice mapping of tokenIn/tokenOut routes to the required GlueX calldata
-    mapping(address => mapping(address => bytes)) internal swapRoutes;
-    mapping(address => mapping(address => uint256)) internal lastUpdateBlock;
-
     /// @notice GlueX router address
     address public gluex = 0xe95F6EAeaE1E4d650576Af600b33D9F7e5f9f7fd;
 
@@ -35,8 +31,24 @@ contract GluexAdapter is ReentrancyGuard {
         address tokenOut,
         bytes calldata gluexData
     ) external {
-        swapRoutes[tokenIn][tokenOut] = gluexData;
-        lastUpdateBlock[tokenIn][tokenOut] = block.number;
+        // Generate unique slots for this token pair in transient storage
+        bytes32 baseSlot = keccak256(abi.encodePacked(tokenIn, tokenOut));
+        bytes32 blockSlot = keccak256(abi.encodePacked(baseSlot, "block"));
+        
+        assembly {
+            tstore(blockSlot, number())
+            tstore(baseSlot, gluexData.length)
+        }
+        
+        // Store data in chunks of 32 bytes
+        uint256 length = gluexData.length;
+        for (uint256 i = 0; i < length; i += 32) {
+            bytes32 chunk;
+            assembly {
+                chunk := calldataload(add(gluexData.offset, i))
+                tstore(add(baseSlot, add(1, div(i, 32))), chunk)
+            }
+        }
     }
 
     /// @notice Swaps an exact amount of input tokens for as many output tokens as possible.
@@ -60,24 +72,15 @@ contract GluexAdapter is ReentrancyGuard {
         address tokenIn = path[0];
         address tokenOut = path[path.length - 1];
 
-        require(
-            lastUpdateBlock[tokenIn][tokenOut] == block.number,
-            "GluexAdapter: path not set in this block"
-        );
-
-        // Use the latest swap path (which must be set in the same transaction)
-        bytes memory gluexCallData = swapRoutes[tokenIn][tokenOut];
-        require(gluexCallData.length > 0, "GluexAdapter: path data is empty");
+        // Load and validate swap data from transient storage
+        bytes memory gluexCallData = _loadSwapData(tokenIn, tokenOut);
 
         IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
-        //approve gluex
-        IERC20(tokenIn).safeApprove(address(gluex), amountIn);
+        IERC20(tokenIn).approve(address(gluex), amountIn);
 
-        // execute the swap by calling gluex with the preset data
         (bool success, ) = gluex.call(gluexCallData);
         require(success, "GluexAdapter: gluex swap failed");
 
-        // the swap router could send us some HYPE, we need to wrap it
         if (address(this).balance > 0) {
             WHYPE.deposit{value: address(this).balance}();
         }
@@ -90,12 +93,54 @@ contract GluexAdapter is ReentrancyGuard {
         IERC20(tokenOut).safeTransfer(to, balanceOut);
     }
 
-    /// @notice Gets the stored GlueX calldata for a given token pair.
+    /// @notice Internal function to load swap data from transient storage
+    /// @param tokenIn The input token
+    /// @param tokenOut The output token
+    /// @return gluexCallData The swap calldata
+    function _loadSwapData(address tokenIn, address tokenOut) internal returns (bytes memory) {
+        // Generate unique slots for this token pair in transient storage
+        bytes32 baseSlot = keccak256(abi.encodePacked(tokenIn, tokenOut));
+        bytes32 blockSlot = keccak256(abi.encodePacked(baseSlot, "block"));
+        
+        uint256 storedBlock;
+        assembly {
+            storedBlock := tload(blockSlot)
+        }
+        require(
+            storedBlock == block.number,
+            "GluexAdapter: path not set in this block"
+        );
+
+        // Load data length from transient storage
+        uint256 dataLength;
+        assembly {
+            dataLength := tload(baseSlot)
+        }
+        require(dataLength > 0, "GluexAdapter: path data is empty");
+        
+        // Reconstruct the calldata from transient storage
+        bytes memory gluexCallData = new bytes(dataLength);
+        for (uint256 i = 0; i < dataLength; i += 32) {
+            bytes32 chunk;
+            assembly {
+                chunk := tload(add(baseSlot, add(1, div(i, 32))))
+            }
+            
+            assembly {
+                mstore(add(add(gluexCallData, 0x20), i), chunk)
+            }
+        }
+        
+        return gluexCallData;
+    }
+
+    /// @notice Gets the stored GlueX calldata for a given token pair from transient storage.
+    /// @dev Only works within the same transaction where setSwapPath was called
     function getSwapRoute(
         address tokenIn,
         address tokenOut
-    ) external view returns (bytes memory) {
-        return swapRoutes[tokenIn][tokenOut];
+    ) external returns (bytes memory) {
+        return _loadSwapData(tokenIn, tokenOut);
     }
 
     fallback() external payable {}

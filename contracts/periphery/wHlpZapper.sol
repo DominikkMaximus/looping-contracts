@@ -18,7 +18,7 @@ contract wHlpZapper is ReentrancyGuard, Ownable {
 
     /// @notice liquid swap router
     ILiquidSwap public liquidSwapRouter =
-        ILiquidSwap(0x744489ee3d540777a66f2cf297479745e0852f7a);
+        ILiquidSwap(0x744489Ee3d540777A66f2cf297479745e0852f7A);
 
     /// @notice wrapped HLP depositor
     IWrappedHlpDepositor public depositor =
@@ -52,7 +52,7 @@ contract wHlpZapper is ReentrancyGuard, Ownable {
         address[] calldata tokens,
         ILiquidSwap.Swap[][] calldata hops,
         uint256 expectedAmountOut,
-        uint256 feeBps,
+        uint256 feeBps
     ) external {
         require(block.timestamp < deadline, "wHlpZapper: expired");
 
@@ -117,7 +117,7 @@ contract wHlpZapper is ReentrancyGuard, Ownable {
                 address(this),
                 amountIn
             );
-            IERC20(tokenIn).safeApprove(address(gluex), amountIn);
+            IERC20(tokenIn).approve(address(gluex), amountIn);
         }
 
         uint256 balanceBefore = IERC20(usdhl).balanceOf(address(this));
@@ -132,7 +132,7 @@ contract wHlpZapper is ReentrancyGuard, Ownable {
             "wHlpZapper: insufficient amount out"
         );
 
-        IERC20(usdhl).safeApprove(address(depositor), receivedUsdhl);
+        IERC20(usdhl).approve(address(depositor), receivedUsdhl);
         depositor.deposit(
             usdhl,
             receivedUsdhl,
