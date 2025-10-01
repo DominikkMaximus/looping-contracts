@@ -12,7 +12,7 @@ import {IWrappedHlpDepositor} from "../interfaces/IWrappedHlpDepositor.sol";
 
 /// @title wHlpZapper
 /// @author HyperLend
-/// @notice Contract used to swap tokens to USDhl before depositing them to wHLP
+/// @notice Contract used to swap tokens to USDT0 before depositing them to wHLP
 contract wHlpZapper is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
@@ -27,18 +27,18 @@ contract wHlpZapper is ReentrancyGuard, Ownable {
     /// @notice GlueX router address
     address public gluex = 0xe95F6EAeaE1E4d650576Af600b33D9F7e5f9f7fd;
 
-    /// @notice address of the vault deposit token (USDhl)
-    address public usdhl = 0xb50A96253aBDF803D85efcDce07Ad8becBc52BD5;
+    /// @notice address of the vault deposit token (USDT0)
+    address public USDT0 = 0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb;
 
     /// @notice `hyperlend` bytes
     bytes public communityCode = hex"68797065726c656e64";
 
     constructor() Ownable(msg.sender) {}
 
-    /// @notice function used to swap from token X into USDhl and then deposit it into wHLP vault
+    /// @notice function used to swap from token X into USDT0 and then deposit it into wHLP vault
     /// @param tokenIn token user is swapping to wHLP
     /// @param amountIn amount of the input token
-    /// @param amountOutMin minimum USDhl amount after the swap
+    /// @param amountOutMin minimum USDT0 amount after the swap
     /// @param minimumMint minimum wHLP shares received
     /// @param deadline swap deadline
     /// @param tokens list of tokens in LiquisSwap swap
@@ -69,15 +69,15 @@ contract wHlpZapper is ReentrancyGuard, Ownable {
             owner() // feeRecipient
         );
 
-        uint256 balanceOut = IERC20(usdhl).balanceOf(address(this));
+        uint256 balanceOut = IERC20(USDT0).balanceOf(address(this));
         require(
             balanceOut >= amountOutMin,
             "wHlpZapper: minAmountOut > balanceOut"
         );
 
-        IERC20(usdhl).approve(address(depositor), balanceOut);
+        IERC20(USDT0).approve(address(depositor), balanceOut);
         depositor.deposit(
-            usdhl,
+            USDT0,
             balanceOut,
             minimumMint,
             msg.sender,
@@ -85,11 +85,11 @@ contract wHlpZapper is ReentrancyGuard, Ownable {
         );
     }
 
-    /// @notice function used to swap from token X into USDhl via Gluex and then deposit it into wHLP vault
+    /// @notice function used to swap from token X into USDT0 via Gluex and then deposit it into wHLP vault
     /// @param tokenIn The token to swap from
     /// @param amountIn The amount of tokenIn to swap
     /// @param gluexData The encoded calldata for the call to be executed by the GlueX contract
-    /// @param amountOutMin The minimum amount of USDhl to receive
+    /// @param amountOutMin The minimum amount of USDT0 to receive
     /// @param minimumMint The minimum amount of wHLP shares to receive
     /// @param deadline The deadline for the transaction
     function zapInGluex(
@@ -120,22 +120,22 @@ contract wHlpZapper is ReentrancyGuard, Ownable {
             IERC20(tokenIn).approve(address(gluex), amountIn);
         }
 
-        uint256 balanceBefore = IERC20(usdhl).balanceOf(address(this));
+        uint256 balanceBefore = IERC20(USDT0).balanceOf(address(this));
 
         (bool success, ) = gluex.call{value: msg.value}(gluexData);
         require(success, "wHlpZapper: gluex swap failed");
 
-        uint256 receivedUsdhl = IERC20(usdhl).balanceOf(address(this)) -
+        uint256 receivedUSDT0 = IERC20(USDT0).balanceOf(address(this)) -
             balanceBefore;
         require(
-            receivedUsdhl >= amountOutMin,
+            receivedUSDT0 >= amountOutMin,
             "wHlpZapper: insufficient amount out"
         );
 
-        IERC20(usdhl).approve(address(depositor), receivedUsdhl);
+        IERC20(USDT0).approve(address(depositor), receivedUSDT0);
         depositor.deposit(
-            usdhl,
-            receivedUsdhl,
+            USDT0,
+            receivedUSDT0,
             minimumMint,
             msg.sender,
             communityCode
